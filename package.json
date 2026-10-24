@@ -1,0 +1,23 @@
+{
+  "name": "wildlands-threejs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WILDLANDS - The Island That Remembers. A low-poly Three.js exploration game where the landscape keeps a record of your passage.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "smoke": "node tests/smoke/smoke.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  }
+}
