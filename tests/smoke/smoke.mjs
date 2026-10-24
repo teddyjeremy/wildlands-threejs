@@ -44,12 +44,13 @@ try {
   await page.screenshot({ path: `${OUT}/01-title.png` });
   check('no console errors on load', errors.length === 0, errors.slice(0, 3).join(' | '));
 
-  const audioBefore = await page.evaluate(() => typeof window.AudioContext);
-  check('audio not started before gesture', audioBefore === 'function');
+  const audioBefore = await page.evaluate(() => window.__WILDLANDS__.state().audioStarted);
+  check('audio not started before the Start gesture', audioBefore === false);
 
   await page.click('#start-btn');
   await page.waitForFunction(() => window.__WILDLANDS__.mode === 'play');
   check('start enters gameplay', true);
+  check('audio starts after the Start gesture', await page.evaluate(() => window.__WILDLANDS__.state().audioStarted));
   const s0 = await page.evaluate(() => window.__WILDLANDS__.state());
   check('player spawns grounded in the cove', s0.player.grounded && s0.region === 'cove', `${s0.region} y=${s0.player.y.toFixed(2)}`);
 

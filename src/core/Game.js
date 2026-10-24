@@ -679,6 +679,7 @@ export class Game {
         const p = game.player.pos;
         return {
           mode: game.mode,
+          audioStarted: !!game.audio.ctx,
           seed: game.seed,
           player: { x: p.x, y: p.y, z: p.z, state: game.player.state, grounded: game.player.grounded },
           region: game.terrain.regionAt(p.x, p.z),
