@@ -1,45 +1,44 @@
-# WILDLANDS: The Island That Remembers
+# WILDLANDS: Seasonkeeper
 
-A third-person, low-poly exploration game built with Three.js. The island keeps
-a record of where you've walked: grass flattens into a trail behind you and
-slowly grows back, hares notice you and bolt, and when it rains the water runs
-down the ridge into the stream and fills the wetland pools, which then dry out.
+A third-person, low-poly exploration and puzzle game built with Three.js. Five islands are stuck
+in the same endless summer. You carry an old lantern, and wherever its light falls the world
+shifts into another season: spring grows bridges out of vines, winter freezes the lagoon into
+ice you can walk on, autumn strips a thornwall bare and storm spins up a windmill that lowers a
+drawbridge. Wake each island's shrine and sail on to the next, up to Stormpeak, where you need
+all four.
 
-![The island from the title screen](docs/screenshots/01-title.png)
+It started as *The Island That Remembers* (v1, still on `main`), a single island where grass
+remembers your footsteps, hares react to you and rain runs downhill. All of that is still here
+on every island. The lantern sits on top of it.
 
-**Play it:** https://wildlands-threejs.vercel.app
+![Verdant Isle with the spring lantern lit](docs/screenshots/11-vine-bridge.png)
 
-## What's in it
+**Play it:** https://wildlands-threejs.vercel.app (production is v1; the `v2` branch has its own
+Vercel preview).
 
-- **Seeded procedural island** (~160 m across) with a cove, a village, a forest, a central ridge,
-  a wetland and stream, a lighthouse point and a hidden hollow. The same seed always gives the
-  same island. Try `?seed=anything`.
-- **Persistent footsteps.** Walking through grass flattens it, sand keeps faint tracks, rock doesn't
-  change at all. Trails fade over a minute or two and are saved with your progress.
-- **Wildlife with a real state machine.** Hares forage, notice you, watch you, flee, and come back
-  home once it's quiet. Running makes you easier to hear.
-- **Weather and water.** Clear, cloudy and rain cycle on their own. Rain feeds runoff channels
-  traced downhill from the ridge, swells the stream, fills the pools and wets the low ground,
-  and everything dries again afterwards.
-- **Shaders.** A custom ocean (waves, depth colour baked from the terrain, foam at the waterline,
-  sun glint), a flow shader for the stream and runoff, wind and trampling in the grass, and a
-  terrain shader for the trail, wetness and debug views.
-- **Day and night.** The sun moves, the sky changes colour, stars come out, village lamps glow and
-  the lighthouse beam sweeps the sea after dark.
-- **Field notebook.** 8 discoveries and 5 collectible trinkets, all saved locally (versioned,
-  validated, and you can reset it).
-- **Original assets only.** Every model is built in code from primitives (explorer, hares,
-  trees, rocks, houses, dock, bridge, lighthouse, cave) and every sound is synthesised with
-  Web Audio. Nothing is downloaded.
+## The islands
+
+| # | Island | Season you learn | Crossing to the shrine |
+| --- | --- | --- | --- |
+| 1 | Verdant Isle | Spring (ember by the violet elder tree) | a vine bridge that grows under spring light |
+| 2 | Frostmere | Winter (ember at the summit cairn) | two stretches of open water you freeze and walk over |
+| 3 | Emberwood | Autumn (ember in the hidden hollow) | a thornwall on the causeway, then a vine bridge |
+| 4 | Galehaven | Storm (ember at the lighthouse) | a windmill-driven drawbridge, then ice |
+| 5 | Stormpeak | - | thornwall, vines, ice and drawbridge in a row |
+
+Each island has its own objective list in the corner of the screen (find the ember, solve the
+crossing, wake the shrine). Waking a shrine unlocks the next island on the archipelago map and
+brings a boat to the dock. The usual notebook entries and trinkets are on every island too,
+saved separately per island.
 
 | | |
 | --- | --- |
-| ![Trail in the meadow](docs/screenshots/02-trail.png) | ![Trail heat debug view](docs/screenshots/03-trail-debug-view.png) |
-| Walking back and forth in the meadow | The same trail in the trail-heat debug view |
-| ![Rain over the wetland](docs/screenshots/05-rain-runoff.png) | ![Lighthouse at dusk with diagnostics](docs/screenshots/06-lighthouse-dusk-diagnostics.png) |
-| Rain: the stream swells and the pools fill | Dusk at the lighthouse, with the diagnostics panel open |
-| ![Hares in the forest meadow](docs/screenshots/04-wildlife.png) | ![Field notebook](docs/screenshots/07-notebook.png) |
-| Hares watching the player approach | The field notebook |
+| ![Spring field](docs/screenshots/10-spring-field.png) | ![Winter ice](docs/screenshots/16-winter-ice.png) |
+| Spring: the field tints everything inside it and wakes the vines | Winter: the lagoon freezes under the lantern and melts behind you |
+| ![Thornwall](docs/screenshots/17-emberwood-hedge.png) | ![Windmill](docs/screenshots/18-galehaven-windmill.png) |
+| Autumn: the thornwall on Emberwood | Storm: calling the wind for the Galehaven windmill |
+| ![Map](docs/screenshots/13-map.png) | ![Stormpeak](docs/screenshots/20-stormpeak-finale.png) |
+| The archipelago map | The last shrine on Stormpeak |
 
 ## Controls
 
@@ -48,16 +47,19 @@ down the ridge into the stream and fills the wetland pools, which then dry out.
 | W A S D / arrow keys | Move (relative to the camera) |
 | Shift | Run |
 | Space | Jump |
-| E | Interact / pick up |
+| E | Interact / pick up / board the boat |
+| Q | Cycle the lantern through the seasons you have |
+| 1 2 3 4 | Spring, winter, autumn, storm directly |
+| F | Dim or relight the lantern |
+| M | Archipelago map (sail to any unlocked island) |
 | Mouse | Click the view to capture the mouse and look around (or drag). Wheel zooms. |
 | N or Tab | Field notebook |
 | Esc | Pause, which also releases the mouse |
 | `` ` `` or F3 | Developer diagnostics |
 
-The pause menu has volume sliders (master, ambience, effects), mute, quality, mouse
-sensitivity, invert-Y, reduced motion, reset progress and exit to title.
-The game is built for keyboard and mouse. Touch devices get a notice saying so instead
-of keyboard instructions they can't use.
+The pause menu has volume sliders, mute, quality, mouse sensitivity, invert-Y, reduced motion,
+reset progress and exit to title. It's built for keyboard and mouse; touch devices get a notice
+instead of instructions they can't use.
 
 ## Running it
 
@@ -71,8 +73,10 @@ npm run smoke      # headless browser smoke test against dist/ (needs Chrome/Chr
 npm run measure    # renderer counters per quality preset
 ```
 
-URL options: `?seed=<text>` picks the island, `?quality=low|medium|high` forces a preset,
-`?debug` opens diagnostics on load.
+URL options: `?quality=low|medium|high` forces a preset, `?debug` opens diagnostics on load,
+and `?level=1..5` jumps straight to an island (handy for testing - you only get the seasons
+that island would normally have once you find its ember; the diagnostics panel has an
+"All seasons" button).
 
 Deploying: `vercel.json` sets up a plain Vite static build (`npm run build`, output `dist`).
 No environment variables or secrets are needed.
@@ -81,18 +85,83 @@ No environment variables or secrets are needed.
 
 ```
 src/
-  core/         Game (lifecycle, fixed-step loop, modes), input
+  core/         Game (world build/teardown, fixed-step loop, modes, travel), input, post stack
+  levels/       island definitions, crossing layout, progression + objectives
   procedural/   seeded random, noise, island layout, terrain + queries, placement rules,
                 tree / rock / building generators, geometry helpers
-  world/        terrain mesh + material patch, ocean, sky + day/night, prop assembly
-  player/       explorer model, character controller, collision world, follow camera
-  simulation/   trail grid, grass, weather, runoff tracing, water visuals, rain, hares + brain
+  world/        terrain mesh, ocean, sky, props, crossings (bridges, ice, shrine, boat)
+  player/       explorer model + lantern, character controller, collision world, follow camera
+  simulation/   season field, puzzles, trail grid, grass, particles, weather, runoff, water,
+                rain, hares + brain
   interaction/  interactable registry, discovery text, collectibles
   systems/      audio, save/load, quality presets, diagnostics
-  ui/           HTML overlay (title, HUD, notebook, pause, cards) and styles
-  shaders/      ocean and flow GLSL
+  shaders/      ocean, flow, the shared season chunk, height fog
+  ui/           HTML overlay (title, HUD, objectives, seasons, map, notebook, pause)
 tests/          Vitest unit tests, Playwright smoke test and measurement script
 ```
+
+### The season field
+
+`SeasonField` is a disc around the lantern: a season, a radius that breathes open when lit,
+and an intensity that fades in and out. Switching season fades the old one out before the new
+one comes in, so nothing pops. `weightAt(x, z)` gives 1 near the lantern and falls off smoothly
+to 0 at the edge.
+
+The important part is that the *same* numbers drive both the picture and the rules:
+
+- **Shaders.** A shared GLSL chunk (`src/shaders/season.js`) is patched into the terrain, grass,
+  foliage and prop materials. It reads the field's centre, radius, intensity and season from a
+  single set of uniforms and recolours the surface: lush greens in spring, snow on anything
+  facing up in winter, amber and rust in autumn, cold desaturated light in a storm. A bright
+  ring marks the edge of the field so you can see its reach.
+- **Puzzles.** Each crossing element (`src/simulation/puzzles.js`) samples the field at its
+  anchor. Vines grow while spring light covers their roots (and wilt back if you leave halfway),
+  the thornwall strips while autumn covers it, and the windmill charges in a storm. Once one
+  completes it latches and is saved.
+- **Ice** reuses the v1 trail grid. A second `TrailGrid` covers only the water along ice
+  crossings; winter light stamps frost into it with the new `stampAt()`, and its regrowth turns
+  into melting (about ten seconds). The player controller has a surface hook, so cells with
+  enough frost are solid ground at sea level. If the ice melts under you, you drop into the
+  water and get fished back out to the last dry spot.
+- **Wildlife.** Spring blooms make hares curious: a calm player with a spring lantern lures
+  them in to graze a couple of metres away instead of scaring them.
+- **Storm** calls rain over the island, so the v1 runoff channels, stream and pools fill up, and
+  it raises the wind for grass, trees and waves.
+
+### Islands, crossings and travel
+
+Every island is the v1 generator with its own seed and shape tweaks. `planLevel()` generates it
+once to find where the coast is along the crossing direction, then lays out stepping-stone
+islets and the shrine islet roughly 12 m apart and bakes them into the heightfield, so the
+terrain queries, the shoreline texture for the ocean and the placement keep-out zones all know
+about them. Tests check that every crossing really spans water too deep to wade and that every
+windmill stands on dry, flat ground.
+
+Sailing doesn't reload the page. The boat pulls away, the screen fades, the current island is
+disposed (geometries, materials, textures, render targets) and the next one is built into a
+fresh scene. Then the boat glides in to the new dock. The renderer, audio, input and UI stay
+alive the whole time.
+
+### Looks
+
+- **Grass:** up to 48k instanced clumps of curved, two-segment blades. Wind is a travelling
+  gust front plus flutter, blades part around the player's legs, trails still flatten them, and
+  each clump gets its own tint. The season chunk colours them too.
+- **Trees** sway in the wind. Only leaf-coloured vertices move, so trunks stay planted.
+- **Lighting:** soft PCF shadows following the player, the lantern is a real point light that
+  takes the season's colour, and the shrine, embers and windmill glow.
+- **Post:** bloom (medium and high), a colour grade with split toning and a light season tint,
+  and a vignette. The low preset renders straight to the screen.
+- **Height fog:** the built-in fog chunks are patched so every material gets a low mist that
+  pools near sea level.
+- **Water:** depth colour and foam from v1, plus ripples around your legs when wading and a
+  bit of caustic shimmer in the shallows. Ice has its own shader with Voronoi cracks, a fresnel
+  sheen and a frosty rim where it's melting.
+- **Particles:** fireflies at night and in the forest, pollen in spring, falling leaves in
+  autumn and off the thornwall, snow in winter, sparks in a storm. One recycled pool, two draw
+  calls.
+- **The explorer** now twists through the stride and carries the lantern on a damped pendulum,
+  so it swings and settles.
 
 ### One terrain, one set of queries
 
@@ -163,40 +232,55 @@ front of obstacles and never drops below the terrain.
 
 ### Saves
 
-`localStorage`, versioned (`v2`, with a migration from `v1`). The save holds the seed and a
-config fingerprint, discoveries, collected items, settings, player position, time of day and
-the compacted trail. Each field is validated separately. Progress from a different world
-config is dropped but settings are kept, and corrupt JSON is ignored instead of blocking
-startup. Reset Progress is in the pause menu.
+`localStorage`, versioned (now `v3`, migrating from `v1` and `v2`). The save holds the current
+island, the archipelago progression (unlocked and completed islands, embers, solved crossings),
+per-island notebook entries and trinkets, settings, and - for the island you're on - player
+position, time of day and the compacted trail, tied to that island's terrain fingerprint. Each
+field is validated separately and corrupt JSON is ignored instead of blocking startup. Reset
+Progress is in the pause menu.
 
 ### Diagnostics
 
 Open with `?debug`, `` ` `` or F3: FPS, average and worst frame time, draw calls, triangles,
 geometries, textures, shader programs, seed, position, region and surface, player state,
-weather values, active trail cells and each hare's state and distance. Buttons switch the
+weather values, the season field, every crossing element's progress, active trail and frost
+cells, particle count, and each hare's state and distance (and whether it's lured). Buttons switch the
 terrain to trail-heat / region / slope views (with the grid drawn), show all placement points,
-show the wildlife overlay, force the weather, skip time, and speed up regrowth.
+show the wildlife overlay, force the weather, skip time, and grant every season.
 
 ## Testing
 
-- `npm test` runs 44 unit tests: seeded RNG and noise, identical terrain and placement for the
-  same seed, vegetation-seed independence, placement rules (land, slope, path clearance,
-  spacing, house orientation), terrain queries (exact at vertices, continuous, unit normals,
-  footprint size, regions), the stream bed and runoff routes never running uphill, save
-  validation and migration, the trail grid (surface response, standing still, recovery,
-  per-frame budget, serialisation), weather transitions and drying, wildlife state transitions
-  and tick-rate independence, and collision resolution.
-- `npm run smoke` builds nothing itself. It serves `dist/` (or tests a deployed build when `BASE_URL` is set), drives the game in headless Chrome and
-  checks: title loads without console errors, Start enters play, movement, jump and landing,
-  collectible prompt and pickup, trail creation, the hares reacting, rain producing runoff and
-  pools, diagnostics, the notebook, the save surviving a reload, a corrupt save being ignored,
-  and the title working at 390 px wide. It also captures the screenshots in `docs/screenshots/`.
+- `npm test` runs the unit tests (Vitest). On top of the v1 suite (seeded generation, placement
+  rules, terrain queries, runoff, saves, trail grid, weather, wildlife, collision) there are
+  tests for the season field (fade-in, falloff, following the lantern, cross-fading between
+  seasons), the puzzle state machines (vines only answer spring and latch, half-grown vines
+  wilt, hedge answers autumn and drawbridge storm, restoring from a save), frost stamping and
+  melting, the spring lure, the level layouts (five islands, crossings over real water, shrine
+  islets, determinism, windmills on dry ground), progression (unlock order, seasons carrying
+  over, objectives, JSON round-trip and junk input) and the v3 save format.
+- `npm run smoke` serves `dist/` (or tests a deployed build when `BASE_URL` is set), drives the
+  game in headless Chrome and checks the v1 basics (load without errors, Start, movement, jump,
+  pickup, trails, hares, rain and runoff, diagnostics, notebook) and then plays the archipelago:
+  pick up the lantern, take the spring ember, grow and cross the vine bridge, wake the shrine,
+  open the map, sail to Frostmere, carry spring over, freeze and walk the ice, check the save
+  after a reload, ignore a corrupt save, and finally solve every crossing on islands 3, 4 and 5
+  on the low preset and finish the game. Screenshots go to `docs/screenshots/` (or
+  `SCREENSHOT_DIR`).
 
 ## Known limitations
 
 - Tested in headless Chrome with software WebGL only. Real-GPU performance is still to be
   measured (see [PERFORMANCE.md](PERFORMANCE.md)).
 - There are no touch controls. Mobile players get a clear notice instead.
+- Islands 2-5 reuse the v1 island plan with different seeds and heights, so they share the same
+  overall shape (cove, village, forest, ridge, lighthouse). The crossings and the seasons are
+  what's different, not the geography.
+- The crossings are linear: one route to the shrine with the puzzles in a fixed order. There's
+  no free-form use of the seasons elsewhere yet (you can freeze only the marked water, and only
+  the marked vines grow).
+- Storm's "fill the channels" is the v1 rain and runoff system switched on, not a separate
+  mechanism you can route.
+- Sound for the new pieces reuses the v1 synthesised cues; there are no dedicated season sounds.
 - The cave is a hollow built from rock and roofed over, open to the south, not a long tunnel.
 - The water is a stylised cause-and-effect model: a few traced channels, a stream and three
   pools, not a fluid simulation.

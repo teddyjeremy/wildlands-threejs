@@ -68,7 +68,7 @@ export class Player {
   _walkable(x, z, fromX, fromZ, y) {
     const deck = this.collisions.deckHeightAt(x, z, y);
     if (deck > -Infinity) return true;
-    if (this.extraSurface && this.extraSurface(x, z) > -Infinity && y > -0.4) return true;
+    if (this.extraSurface && this.extraSurface(x, z) > -Infinity && y > -1.0) return true; // wading up onto ice is fine
     const h = this.terrain.heightAt(x, z);
     if (h < this.terrain.seaLevel - 0.7) return false; // waist-deep: turn back
     const h0 = this.terrain.heightAt(fromX, fromZ);

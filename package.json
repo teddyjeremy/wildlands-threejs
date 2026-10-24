@@ -1,8 +1,8 @@
 {
   "name": "wildlands-threejs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "WILDLANDS - The Island That Remembers. A low-poly Three.js exploration game where the landscape keeps a record of your passage.",
+  "description": "WILDLANDS: Seasonkeeper. A low-poly Three.js exploration game across five islands, where a lantern shifts the seasons around you.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -329,7 +329,7 @@ function iceSheets(segs, ctx) {
   };
   const frost = trailFactory({
     cellSize: 1,
-    surfaceAt: (x, z) => (corridor(x, z) && terrain.heightAt(x, z) < 0.05 ? 'water' : 'rock'),
+    surfaceAt: (x, z) => (corridor(x, z) && terrain.heightAt(x, z) < 0.3 ? 'water' : 'rock'),
     response: {
       grass: { gain: 0, regrow: 1 },
       path: { gain: 0, regrow: 1 },

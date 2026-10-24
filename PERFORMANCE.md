@@ -1,73 +1,93 @@
 # Performance notes
 
-Everything below was measured, and I've written down where. I don't have a
-GPU-backed browser available for this round of testing, so there is **no
-real-hardware FPS figure here yet**. Please don't read the numbers below as one.
+Everything below was measured, and I've written down where. I still don't have a GPU-backed
+browser for testing, so there is **no real-hardware FPS figure here**. The frame times come from
+a software rasteriser and only show how the presets scale against each other.
 
 ## Test setup
 
 - Machine: 8-core Intel Xeon (cloud VM), no GPU
-- Browser: headless Chrome 156 with WebGL via ANGLE + SwiftShader (software rasteriser)
-- Viewport 1280x720, scene: clear weather, player standing in the meadow north of the village (0, 40) looking north, camera distance 8
-- Script: `npm run build && npm run measure` (`tests/smoke/measure.mjs`), counters read from `renderer.info` after ~8 s
+- Browser: headless Chrome with WebGL via ANGLE + SwiftShader (software rasteriser)
+- Viewport 1280x720, Verdant Isle (island 1), clear weather, player standing in the meadow at
+  (0, 40) looking north, camera distance 8, lantern unlit
+- Script: `npm run build && npm run measure` (`tests/smoke/measure.mjs`), counters read from
+  `renderer.info` after ~8 s. `renderer.info` is reset once per frame now, so the counts include
+  every pass of the post stack and the shadow map.
 
-## Results (24 Oct 2026)
+## Results (24 Oct 2026, Seasonkeeper / v2)
 
 | Preset | Draw calls | Triangles | Geometries | Shader programs | Frame time (SwiftShader) |
 | --- | --- | --- | --- | --- | --- |
-| low | 34 | 125.5k | 79 | 17 | ~101 ms (~10 fps) |
-| medium | 34 | 177.1k | 85 | 20 | ~244 ms (~4 fps) |
-| high | 34 | 254.0k | 91 | 20 | ~352 ms (~3 fps) |
+| low | 37 | 193.8k | 89 | 24 | ~140 ms (~7 fps) |
+| medium | 120 | 480.0k | 96 | 57 | ~403 ms (~2.5 fps) |
+| high | 128 | 715.1k | 102 | 57 | ~547 ms (~1.8 fps) |
 
-The frame times are the CPU rasteriser's cost, so they mostly show how the
-presets *scale* relative to each other. Triangle count and draw calls are the
-same on any device.
+For comparison, v1 measured 34 / 34 / 34 draw calls and 125k / 177k / 254k triangles, but
+v1's counter only saw the last render call of the frame, so the draw calls aren't directly
+comparable. Most of the medium/high jump is the post stack (bloom is several small full-screen
+passes) and the shadow pass drawing the props a second time. The triangle growth is the
+grass: blades are now curved, two-segment strips (12 triangles a clump instead of 3) and there
+are more clumps.
 
 Other measured numbers (Node 20 on the same VM):
 
-- Terrain generation (180x180 grid, all shaping passes): ~60 ms
-- Placement (houses, trees, rocks, 26k grass, flowers): ~175 ms
-- Load to title screen in the production build: 0.5-1.2 s depending on preset
-- Production bundle: app 119.5 kB (43.5 kB gzip), three.js chunk 514.6 kB (130.7 kB gzip), CSS 7.2 kB
-
-## Why the draw-call count stays low
-
-- Trees: 3 families x 3 geometric variants, each an `InstancedMesh` (243 trees in 9 draw calls).
-- Rocks: 4 kinds x 3 variants, instanced. Flowers: one instanced mesh with per-instance colour.
-- Grass: a single `InstancedMesh` of crossed-blade clumps (7k / 15k / 26k by preset). The trail
-  flattening is a per-instance float attribute; wind is done in the vertex shader.
-- Houses, lighthouse, cave, dock: each prop is built from primitives and merged into **one**
-  vertex-coloured geometry, so a house is one draw call instead of ~20.
-- One shared flat-shaded Lambert material for nearly all props.
+- Planning an island (two terrain passes on the 225x225 grid, islets baked in): ~120-190 ms
+- Grass placement for 48k candidates: ~260 ms
+- Load to title in the production build: 0.6-0.75 s
+- Rebuilding the world when you sail: same as above plus shader compile, hidden behind the fade
+- Production bundle: app 197 kB (68 kB gzip), three.js chunk 515 kB (131 kB gzip), CSS 9.4 kB
 
 ## What the presets change
 
 | Knob | low | medium | high |
 | --- | --- | --- | --- |
 | Pixel ratio cap | 1 | 1.5 | 2 |
-| Sun shadows | off | 1024 map | 2048 map |
-| Grass clumps | 7,000 | 15,000 | 26,000 |
+| Sun shadows (soft PCF) | off | 1024 map | 2048 map |
+| Post stack (bloom, grade, vignette) | off, renders straight to screen | on | on |
+| Grass clumps | 5,000 | 24,000 | 48,000 |
+| Particles (max) | 250 | 900 | 1,600 |
 | Rain streaks (max) | 500 | 1,200 | 2,400 |
 | Flowers | 300 | 600 | 900 |
 | Active hares | 2 | 3 | 4 |
 | Fog far plane | 190 | 240 | 280 |
 | MSAA | off | on | on (only applied at page load) |
 
+Low is meant to stay playable on weak machines: no shadows, no post-processing, a fifth of the
+high grass, and the same gameplay. The season tint, ice shader and particles still run on low
+because the puzzles need you to see them.
+
+## Why the draw-call count stays manageable
+
+- Trees, rocks, flowers, grass, vine planks, causeway stones and thornwall bushes are all
+  `InstancedMesh`es. A whole vine bridge is three draw calls however long it is.
+- Houses, lighthouse, cave, dock, windmill, shrine stones and the boat are merged into
+  vertex-coloured geometry, one draw call per piece.
+- Particles are one recycled pool split over two `Points` draws (additive glow and normal).
+- The season effect isn't extra geometry: it's a shared GLSL chunk in the existing terrain,
+  grass, foliage and prop materials, fed by one set of uniforms.
+
 ## Bounded work per frame
 
-- The trail grid is 320x320 cells, but regrowth only visits cells in the *active list*
-  (cells with any disturbance), capped at 4,000 per frame. Grass instances are refreshed only
-  in a ~26 m radius around the player, at most 10 times a second.
-- Wildlife decisions run at a fixed 20 Hz and only within 70 m of the player.
-- Rain is a fixed pool of line segments that gets recycled. Nothing is allocated while it runs.
-- The simulation step is fixed at 60 Hz and the frame delta is capped at 100 ms, so a slow frame
-  makes the game run slower instead of making things jump.
+- The season field is a few uniforms and an `O(1)` weight function; each puzzle samples it once
+  at its anchor.
+- Frost uses the trail grid's active list. Only water cells inside an ice crossing's corridor
+  can ever freeze (everything else is classed as rock and ignored), and melting is the normal
+  budgeted regrowth. The frost texture uploads at most ~12 times a second, and only when it
+  changed.
+- The trail grid is now 400x400 cells (the islands are bigger), but regrowth still only visits
+  active cells, capped at 4,000 a frame. Grass instances are refreshed only in a ~26 m radius.
+- Wildlife decisions run at 20 Hz and only within 70 m of the player.
+- The simulation step is fixed at 60 Hz and the frame delta is capped at 100 ms.
+- Sailing disposes the whole previous island (geometry, materials, textures, shadow map) before
+  building the next one, so memory doesn't grow as you travel.
 
 ## Known caveats
 
-- Shadow-casting grass is off on purpose. Grass only receives shadows.
-- Toggling shadows at runtime forces every material to recompile, which causes a one-off hitch.
-- I haven't profiled on a mobile GPU. Low is the suggested default for touch devices and
-  machines with 4 or fewer cores.
-- Next thing to measure on real hardware: how the grass vertex shader cost scales with clump
-  count at a pixel ratio of 2. It's the obvious suspect for the high preset.
+- The grass vertex shader is the most likely cost on real GPUs at pixel ratio 2 (wind, gusts,
+  player push and the season tint all run per vertex). That's the first thing I'd profile.
+- Height fog needs the camera-to-world transform per vertex (`inverse(viewMatrix)`), which is
+  wasteful. Passing the camera matrix as a uniform would be cheaper.
+- Toggling shadows or the quality preset recompiles every material, which causes a one-off
+  hitch.
+- Not profiled on mobile GPUs. Low is the suggested default for touch devices and machines with
+  4 or fewer cores.

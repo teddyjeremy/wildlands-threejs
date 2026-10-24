@@ -1164,6 +1164,12 @@ export class Game {
       setTime: (t) => (game.timeOfDay = t),
       setSeason: (s) => game.selectSeason(s),
       grantAll: () => game.grantAll(),
+      frostProbe: (x, z) => {
+        const f = game.crossing.ice?.frost;
+        if (!f) return null;
+        const idx = f.index(x, z);
+        return { v: f.valueAt(x, z), surface: idx >= 0 ? f.surfaceOf(idx) : null, active: f.activeCount, field: [game.field.x, game.field.z, game.field.season, game.field.intensity] };
+      },
       travel: (i) => game.travel(i),
       openMap: () => game.setMode('map'),
       teleport: (x, z, heading = 0) => {
