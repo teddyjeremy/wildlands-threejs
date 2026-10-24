@@ -14,6 +14,8 @@ const CHROME = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/c
 
 // Set BASE_URL to test a deployed build instead of a local preview.
 const BASE = process.env.BASE_URL?.replace(/\/$/, '');
+// For a protected preview: a share link to open first so the auth cookie is set.
+const AUTH = process.env.BASE_AUTH_URL;
 const server = BASE ? null : spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
 if (server) await new Promise((res, rej) => {
   server.stdout.on('data', (d) => /Local/.test(d) && res());
@@ -68,6 +70,7 @@ try {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
 
+  if (AUTH) await page.goto(AUTH);
   const t0 = Date.now();
   await page.goto(`${BASE || `http://localhost:${PORT}`}/?quality=medium`);
   await page.waitForFunction(() => window.__WILDLANDS__?.mode === 'title', null, { timeout: 90000 });
@@ -300,6 +303,7 @@ try {
     const p = await ctx.newPage();
     p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
     p.on('pageerror', (e) => errors.push(e.message));
+    if (AUTH) await p.goto(AUTH);
     await p.goto(`${BASE || `http://localhost:${PORT}`}/?quality=low&level=${n}`);
     await p.waitForFunction(() => window.__WILDLANDS__?.mode === 'title', null, { timeout: 120000 });
     await p.click('#start-btn');
