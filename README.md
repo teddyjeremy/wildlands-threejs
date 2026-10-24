@@ -7,7 +7,7 @@ down the ridge into the stream and fills the wetland pools, which then dry out.
 
 ![The island from the title screen](docs/screenshots/01-title.png)
 
-> Live build: _deployment link to be added_
+**Play it:** https://wildlands-threejs.vercel.app
 
 ## What's in it
 
@@ -186,7 +186,7 @@ show the wildlife overlay, force the weather, skip time, and speed up regrowth.
   validation and migration, the trail grid (surface response, standing still, recovery,
   per-frame budget, serialisation), weather transitions and drying, wildlife state transitions
   and tick-rate independence, and collision resolution.
-- `npm run smoke` builds nothing itself. It serves `dist/`, drives the game in headless Chrome and
+- `npm run smoke` builds nothing itself. It serves `dist/` (or tests a deployed build when `BASE_URL` is set), drives the game in headless Chrome and
   checks: title loads without console errors, Start enters play, movement, jump and landing,
   collectible prompt and pickup, trail creation, the hares reacting, rain producing runoff and
   pools, diagnostics, the notebook, the save surviving a reload, a corrupt save being ignored,

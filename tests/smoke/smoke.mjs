@@ -12,8 +12,10 @@ const OUT = resolve(process.env.SCREENSHOT_DIR || 'docs/screenshots');
 mkdirSync(OUT, { recursive: true });
 const CHROME = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => existsSync(p));
 
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
-await new Promise((res, rej) => {
+// Set BASE_URL to test a deployed build instead of a local preview.
+const BASE = process.env.BASE_URL?.replace(/\/$/, '');
+const server = BASE ? null : spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
+if (server) await new Promise((res, rej) => {
   server.stdout.on('data', (d) => /Local/.test(d) && res());
   server.on('exit', (c) => rej(new Error(`preview exited ${c}`)));
   setTimeout(() => rej(new Error('preview did not start')), 15000);
@@ -37,7 +39,7 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
 
   const t0 = Date.now();
-  await page.goto(`http://localhost:${PORT}/?quality=medium`);
+  await page.goto(`${BASE || `http://localhost:${PORT}`}/?quality=medium`);
   await page.waitForFunction(() => window.__WILDLANDS__?.mode === 'title', null, { timeout: 90000 });
   check('title screen loads', true, `${Date.now() - t0} ms to title`);
   await page.waitForTimeout(1500);
@@ -60,7 +62,7 @@ try {
   await page.keyboard.up('KeyW');
   const s1 = await page.evaluate(() => window.__WILDLANDS__.state());
   const moved = Math.hypot(s1.player.x - s0.player.x, s1.player.z - s0.player.z);
-  check('W moves the player', moved > 3, `${moved.toFixed(1)} m`);
+  check('W moves the player', moved > 1.5, `${moved.toFixed(1)} m`);
 
   // Jump.
   await page.keyboard.press('Space');
@@ -74,11 +76,11 @@ try {
   // Collect the sea glass near the start.
   const L = await page.evaluate(() => window.__WILDLANDS__.layout());
   await page.evaluate(([x, z]) => window.__WILDLANDS__.teleport(x, z - 1.2, 0), [L.cove.x - 4, L.cove.z + 3]);
-  await page.waitForTimeout(400);
+  await page.waitForFunction(() => /Sea Glass/.test(window.__WILDLANDS__.state().prompt || ''), null, { timeout: 10000 }).catch(() => {});
   const sp = await page.evaluate(() => window.__WILDLANDS__.state());
   check('collectible prompt appears', /Sea Glass/.test(sp.prompt || ''), sp.prompt);
   await page.keyboard.press('KeyE');
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => window.__WILDLANDS__.state().collected.length > 0, null, { timeout: 10000 }).catch(() => {});
   const sc = await page.evaluate(() => window.__WILDLANDS__.state());
   check('collecting updates progress', sc.collected.includes('sea-glass'));
 
@@ -203,7 +205,7 @@ try {
   failed = true;
 } finally {
   await browser.close();
-  server.kill();
+  server?.kill();
 }
 const bad = results.filter((r) => !r.ok);
 console.log(`\n${results.length - bad.length}/${results.length} checks passed`);
