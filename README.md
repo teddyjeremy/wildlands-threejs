@@ -13,7 +13,7 @@ on every island. The lantern sits on top of it.
 
 ![Verdant Isle with the spring lantern lit](docs/screenshots/11-vine-bridge.png)
 
-**Play it:** https://wildlands-threejs.vercel.app (production is v1; the `v2` branch has its own
+**Play it:** https://wildlands.jeremyteddy.dev (production is v1; the `v2` branch has its own
 Vercel preview).
 
 ## The islands
