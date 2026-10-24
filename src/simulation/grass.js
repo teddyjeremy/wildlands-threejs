@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { seasonUniforms, patchSeasonVertex, patchSeasonFragment } from '../shaders/season.js';
 
 // Instanced grass clumps that read the trail grid.
 //
@@ -9,16 +10,33 @@ import * as THREE from 'three';
 // number of grid cells, so the cost doesn't grow with the island.
 
 function makeClumpGeometry() {
-  // Three crossed, tapered blades. y in [0,1] so the shader can use it as
-  // "how far up the blade" for bending.
+  // Four tapered, slightly curved blades, two segments each so they can bend
+  // instead of hinging. y runs 0..1 root to tip (the shader relies on that).
   const pos = [];
-  const blades = 3;
+  const blades = 4;
   for (let b = 0; b < blades; b++) {
-    const a = (b / blades) * Math.PI;
-    const dx = Math.cos(a) * 0.22;
-    const dz = Math.sin(a) * 0.22;
-    const lean = 0.1 * (b - 1);
-    pos.push(-dx, 0, -dz, dx, 0, dz, lean, 1, lean * 0.5);
+    const a = (b / blades) * Math.PI + b * 0.4;
+    const ox = Math.cos(a * 2.3) * 0.08;
+    const oz = Math.sin(a * 2.3) * 0.08;
+    const dx = Math.cos(a) * 0.11;
+    const dz = Math.sin(a) * 0.11;
+    const lx = -dz * 0.9; // lean direction, perpendicular to the blade face
+    const lz = dx * 0.9;
+    const h = 0.8 + (b % 2) * 0.2;
+    const row = (t) => {
+      const w = 1 - t * 0.82;
+      const bend = t * t * 0.35;
+      return [
+        [ox - dx * w + lx * bend, t * h, oz - dz * w + lz * bend],
+        [ox + dx * w + lx * bend, t * h, oz + dz * w + lz * bend],
+      ];
+    };
+    const r0 = row(0);
+    const r1 = row(0.55);
+    const tip = [ox + lx * 0.35, h, oz + lz * 0.35];
+    pos.push(...r0[0], ...r0[1], ...r1[0]);
+    pos.push(...r0[1], ...r1[1], ...r1[0]);
+    pos.push(...r1[0], ...r1[1], ...tip);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -33,7 +51,7 @@ export function createGrass({ positions, maxCount, trail, scene }) {
   aTrail.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute('aTrail', aTrail);
 
-  const uniforms = { uTime: { value: 0 }, uWind: { value: 1 } };
+  const uniforms = { uTime: { value: 0 }, uWind: { value: 1 }, uPlayerPos: seasonUniforms.uPlayerPos };
   const material = new THREE.MeshLambertMaterial({ color: '#8fbf55', side: THREE.DoubleSide });
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -44,8 +62,10 @@ export function createGrass({ positions, maxCount, trail, scene }) {
 attribute float aTrail;
 uniform float uTime;
 uniform float uWind;
+uniform vec3 uPlayerPos;
 varying float vTip;
-varying float vTrail;`,
+varying float vTrail;
+varying float vHue;`,
       )
       .replace(
         '#include <begin_vertex>',
@@ -56,28 +76,41 @@ vTip = tip;
 vTrail = aTrail;
 // World position of the clump root, for spatially varying wind.
 vec3 root = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-float sway = sin(uTime * 1.7 + root.x * 0.35 + root.z * 0.21) * 0.12 * uWind * (1.0 - aTrail);
+// Wind: a slow travelling gust front plus per-clump flutter.
+float gust = 0.55 + 0.45 * sin(uTime * 0.9 - root.x * 0.06 - root.z * 0.04);
+float sway = (sin(uTime * 1.7 + root.x * 0.35 + root.z * 0.21) * 0.1 + sin(uTime * 4.3 + root.x * 1.3) * 0.025) * uWind * gust * (1.0 - aTrail);
+vHue = fract(sin(dot(root.xz, vec2(4.1, 7.7))) * 1931.3);
+// Push blades away from the player's legs.
+vec2 away = root.xz - uPlayerPos.xz;
+float pd = length(away);
+float push = (1.0 - smoothstep(0.2, 1.3, pd)) * step(abs(uPlayerPos.y - root.y), 1.5);
+vec2 pdir = away / max(pd, 0.001);
 // Trampled blades: squash height and lay them over along a per-clump direction.
 float trodden = aTrail * 0.85;
 float dir = fract(sin(dot(root.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831;
-transformed.y *= 1.0 - trodden;
-transformed.x += (sway + cos(dir) * trodden * 0.7) * tip;
-transformed.z += (sway * 0.5 + sin(dir) * trodden * 0.7) * tip;`,
+transformed.y *= 1.0 - max(trodden, push * 0.5);
+transformed.x += (sway + cos(dir) * trodden * 0.7 + pdir.x * push * 0.55) * tip * tip;
+transformed.z += (sway * 0.5 + sin(dir) * trodden * 0.7 + pdir.y * push * 0.55) * tip * tip;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
         `#include <common>
 varying float vTip;
-varying float vTrail;`,
+varying float vTrail;
+varying float vHue;`,
       )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
+// Per-clump variety: some fresher, some drier.
+diffuseColor.rgb *= mix(vec3(0.86, 1.04, 0.82), vec3(1.12, 1.0, 0.72), vHue);
 // Darker at the root, sun-bleached at the tip; trampled grass goes olive.
 diffuseColor.rgb *= mix(0.55, 1.12, vTip);
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.85, 0.8, 0.55), vTrail * 0.7);`,
       );
+    patchSeasonVertex(shader);
+    patchSeasonFragment(shader, { foliage: '1.0', up: 'mix(0.2, 1.0, vTip)', ring: false });
   };
   material.customProgramCacheKey = () => 'wildlands-grass';
 

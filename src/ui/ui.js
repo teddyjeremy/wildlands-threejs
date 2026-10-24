@@ -11,6 +11,9 @@ const CONTROLS = `
     <dt><kbd>Space</kbd></dt><dd>Jump</dd>
     <dt><kbd>E</kbd></dt><dd>Interact / pick up</dd>
     <dt>Mouse</dt><dd>Click the world to look around, wheel to zoom</dd>
+    <dt><kbd>Q</kbd> / <kbd>1</kbd>–<kbd>4</kbd></dt><dd>Change the lantern's season</dd>
+    <dt><kbd>F</kbd></dt><dd>Dim / relight the lantern</dd>
+    <dt><kbd>M</kbd></dt><dd>Archipelago map</dd>
     <dt><kbd>N</kbd> / <kbd>Tab</kbd></dt><dd>Field notebook</dd>
     <dt><kbd>Esc</kbd></dt><dd>Pause and release the mouse</dd>
   </dl>`;
@@ -27,9 +30,10 @@ export class UI {
 
       <section id="title" class="interactive hidden" aria-labelledby="title-h">
         <h1 id="title-h">WILDLANDS</h1>
-        <h2>The Island That Remembers</h2>
-        <p class="pitch">A small island that keeps a record of where you've been. Grass bends under your boots and slowly grows back,
-        hares watch you from the meadow, and when the rain comes the water finds its own way downhill.</p>
+        <h2>Seasonkeeper</h2>
+        <p class="pitch">Five islands, each stuck in the same long summer. Carry the old lantern and the world around you changes
+        season: spring grows bridges of vine, winter freezes the lagoon, autumn strips the thorns bare and storm wakes the windmills.
+        Wake each island's shrine to find your way to the peak.</p>
         <div class="title-actions">
           <button class="btn" data-act="start" id="start-btn">Start Exploring</button>
           <button class="btn secondary" data-act="toggle-controls" aria-expanded="false" aria-controls="title-controls">Controls</button>
@@ -53,7 +57,20 @@ export class UI {
         <div class="prompt hidden" aria-live="polite"></div>
         <div class="hint"></div>
         <div class="toasts" aria-live="polite"></div>
+        <div class="objectives" aria-live="polite"><h4></h4><ul></ul></div>
+        <div class="seasons" aria-label="Lantern seasons"></div>
       </div>
+
+      <div id="map" class="overlay interactive hidden" role="dialog" aria-modal="true" aria-labelledby="map-h">
+        <div class="map-panel">
+          <h2 id="map-h">The Archipelago</h2>
+          <p class="sub">Choose an island to sail to.</p>
+          <svg viewBox="0 0 600 300" class="map-svg" aria-hidden="true"></svg>
+          <div class="map-list"></div>
+          <button class="btn secondary" data-act="close-map">Close</button>
+        </div>
+      </div>
+      <div id="fade" class="hidden"><div class="fade-text"></div></div>
 
       <div id="card" class="card hidden" role="status" aria-live="polite"></div>
 
@@ -113,6 +130,10 @@ export class UI {
       notebook: this.$('#notebook'),
       pause: this.$('#pause'),
       debug: this.$('#debug'),
+      objectives: this.$('#hud .objectives'),
+      seasons: this.$('#hud .seasons'),
+      map: this.$('#map'),
+      fade: this.$('#fade'),
       debugPre: this.$('#debug pre'),
       debugBtns: this.$('#debug .btns'),
     };
@@ -122,6 +143,10 @@ export class UI {
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const act = btn.dataset.act;
+      if (act.startsWith('sail:')) {
+        this.h.onAction?.('sail', Number(act.slice(5)));
+        return;
+      }
       if (act === 'toggle-controls') {
         const box = this.$('#title-controls');
         box.classList.toggle('hidden');
@@ -145,6 +170,13 @@ export class UI {
         e.preventDefault();
         e.stopPropagation();
         this.h.onAction?.('close-notebook');
+      }
+    });
+    this.el.map.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.h.onAction?.('close-map');
       }
     });
     this.el.pause.addEventListener('keydown', (e) => {
@@ -253,6 +285,74 @@ export class UI {
       return `<li class="${ok ? '' : 'locked'}"><span class="where">Trinket</span><h3>${ok ? esc(c.name) : '???'}</h3><p>${ok ? esc(COLLECTIBLE_TEXT[c.id] || '') : 'Not found yet.'}</p></li>`;
     }).join('');
     this.$('#notebook .close').focus();
+  }
+
+  setObjectives(title, list) {
+    const key = title + JSON.stringify(list);
+    if (key === this._obj) return;
+    this._obj = key;
+    this.el.objectives.querySelector('h4').textContent = title;
+    this.el.objectives.querySelector('ul').innerHTML = list
+      .map((o) => `<li class="${o.done ? 'done' : ''}" data-id="${esc(o.id)}"><span class="tick">${o.done ? '✔' : '○'}</span>${esc(o.text)}</li>`)
+      .join('');
+  }
+
+  /** seasons: [{id,label,color,key,available}], active id or null. */
+  setSeasons(seasons, active, lit) {
+    const key = JSON.stringify([seasons.map((s) => s.id + s.available), active, lit]);
+    if (key === this._seasonsKey) return;
+    this._seasonsKey = key;
+    this.el.seasons.classList.toggle('hidden', !seasons.some((s) => s.available));
+    this.el.seasons.innerHTML = seasons
+      .map((s) => `<div class="season ${s.available ? '' : 'locked'} ${s.id === active && lit ? 'on' : ''}" style="--c:${s.color}" data-season="${s.id}" title="${esc(s.label)}"><kbd>${s.key}</kbd><span>${s.available ? esc(s.label) : '?'}</span></div>`)
+      .join('');
+  }
+
+  /** levels: [{index,name,season,color,unlocked,completed,current}] */
+  showMap(show, levels = []) {
+    this.el.map.classList.toggle('hidden', !show);
+    if (!show) return;
+    const svg = this.$('#map .map-svg');
+    const pts = [[80, 210], [190, 110], [300, 200], [410, 100], [520, 170]];
+    let out = `<defs><radialGradient id="sea" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#2c6d8c"/><stop offset="1" stop-color="#173c55"/></radialGradient></defs>
+      <rect x="0" y="0" width="600" height="300" rx="18" fill="url(#sea)"/>`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const open = levels[i + 1]?.unlocked;
+      out += `<path d="M${pts[i][0]},${pts[i][1]} Q${(pts[i][0] + pts[i + 1][0]) / 2},${Math.min(pts[i][1], pts[i + 1][1]) - 40} ${pts[i + 1][0]},${pts[i + 1][1]}" stroke="${open ? '#f3e2b5' : '#ffffff33'}" stroke-width="3" stroke-dasharray="8 7" fill="none"/>`;
+    }
+    levels.forEach((l, i) => {
+      const [x, y] = pts[i];
+      const r = l.current ? 34 : 28;
+      out += `<g class="isle ${l.unlocked ? 'open' : 'closed'}">
+        <ellipse cx="${x}" cy="${y + 6}" rx="${r + 10}" ry="${r * 0.55 + 6}" fill="#4fd0c455"/>
+        <path d="M${x - r},${y + 4} Q${x - r * 0.6},${y - r * 0.9} ${x},${y - r} Q${x + r * 0.7},${y - r * 0.8} ${x + r},${y + 4} Q${x},${y + r * 0.5} ${x - r},${y + 4}Z" fill="${l.unlocked ? '#7aa84e' : '#4a5a55'}" stroke="#e3cf9b" stroke-width="3"/>
+        <circle cx="${x}" cy="${y - r * 0.35}" r="7" fill="${l.completed ? l.color : '#00000055'}" stroke="${l.color}" stroke-width="2"/>
+        <text x="${x}" y="${y + r * 0.75 + 22}" text-anchor="middle" fill="#f3e9d2" font-size="15" font-family="Georgia, serif">${esc(l.name)}</text>
+      </g>`;
+    });
+    svg.innerHTML = out;
+    this.$('#map .map-list').innerHTML = levels
+      .map((l) => `<button class="btn ${l.current ? 'secondary' : ''}" data-act="sail:${l.index}" ${l.unlocked && !l.current ? '' : 'disabled'} data-level="${l.index}">
+        ${esc(l.name)}<small>${l.completed ? 'Shrine awake' : l.unlocked ? (l.season ? `Teaches ${esc(l.season)}` : 'All four seasons') : 'Locked'}${l.current ? ' · you are here' : ''}</small></button>`)
+      .join('');
+    setTimeout(() => this.$('#map .map-list button:not([disabled])')?.focus(), 30);
+  }
+
+  /** Full-screen fade used for the boat crossing. */
+  fade(on, text = '') {
+    const f = this.el.fade;
+    f.querySelector('.fade-text').textContent = text;
+    if (on) {
+      f.classList.remove('hidden');
+      requestAnimationFrame(() => f.classList.add('on'));
+    } else {
+      f.classList.remove('on');
+      setTimeout(() => f.classList.add('hidden'), 900);
+    }
+  }
+
+  banner(kicker, title) {
+    this.card(kicker, title, '');
   }
 
   showPause(show) {

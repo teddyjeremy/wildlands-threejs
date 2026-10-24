@@ -14,13 +14,15 @@ export function resolveConfig(overrides = {}) {
     ...DEFAULT_CONFIG,
     ...overrides,
     mountain: { ...DEFAULT_CONFIG.mountain, ...(overrides.mountain || {}) },
+    islets: overrides.islets || [],
+    keepOut: overrides.keepOut || [],
   };
 }
 
 /** Stable fingerprint of the parameters that shape the terrain. Stored with saves. */
 export function configKey(config) {
   const c = resolveConfig(config);
-  return [c.seed, c.size, c.resolution, c.radius, c.maxHeight, c.coastIrregularity, c.noiseAmplitude, c.mountain.x, c.mountain.z].join('|');
+  return [c.seed, c.size, c.resolution, c.radius, c.maxHeight, c.coastIrregularity, c.noiseAmplitude, c.mountain.x, c.mountain.z, JSON.stringify(c.islets)].join('|');
 }
 
 export function generateTerrain(overrides = {}) {
@@ -133,6 +135,13 @@ export function generateTerrain(overrides = {}) {
     const w = 1 - smoothstep(1.2, 4.2, s.d);
     if (w > 0) h = lerp(h, Math.min(h, bed), w);
 
+    // Offshore islets (used by the archipelago levels). Steep sides keep the
+    // water between them deep enough that you can't just wade across.
+    for (const it of config.islets) {
+      const di = Math.hypot(x - it.x, z - it.z);
+      if (di < it.r) h = Math.max(h, lerp(it.h, -4, smoothstep(it.r * 0.5, it.r, di)));
+    }
+
     return h;
   }
 
@@ -203,6 +212,7 @@ export function generateTerrain(overrides = {}) {
     const h = heightAt(x, z);
     if (h <= SEA_LEVEL) return 'sea';
     const near = (p, r) => Math.hypot(x - p.x, z - p.z) < r;
+    for (const it of config.islets) if (it.shrine && Math.hypot(x - it.x, z - it.z) < it.r) return 'shrine';
     if (near(L.cave, L.cave.r)) return 'cave';
     if (near(L.lighthouse, L.lighthouse.r + 4)) return 'lighthouse';
     if (near(L.village, L.village.r + 3)) return 'village';

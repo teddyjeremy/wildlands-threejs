@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createSeasonMaterial } from '../shaders/season.js';
 import { createRandom } from '../procedural/random.js';
 import { TREE_BUILDERS, TREE_KINDS, makeOldTree } from '../procedural/trees.js';
 import { makeRock } from '../procedural/rocks.js';
@@ -28,8 +29,9 @@ function setInstance(mesh, i, x, y, z, ry, s, sy = s) {
 export function buildProps({ scene, terrain, collisions, seed, quality }) {
   const vegSeed = terrain.config.vegetationSeed || `${seed}:veg`;
   const L = terrain.layout;
-  const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  const out = { meshes: [], lamps: [], data: {}, materials: [material] };
+  const material = createSeasonMaterial({ name: 'props' });
+  const foliageMaterial = createSeasonMaterial({ name: 'foliage', sway: true });
+  const out = { meshes: [], lamps: [], data: {}, materials: [material, foliageMaterial] };
   const add = (m, shadow = true) => {
     m.castShadow = shadow;
     m.receiveShadow = true;
@@ -102,7 +104,7 @@ export function buildProps({ scene, terrain, collisions, seed, quality }) {
       const list = trees.filter((t, idx) => t.kind === kind && idx % variants === v);
       if (!list.length) continue;
       const geo = TREE_BUILDERS[kind](createRandom(`${vegSeed}:${kind}:${v}`));
-      const mesh = new THREE.InstancedMesh(geo, material, list.length);
+      const mesh = new THREE.InstancedMesh(geo, foliageMaterial, list.length);
       list.forEach((t, i) => {
         setInstance(mesh, i, t.x, t.y - 0.1, t.z, t.ry, t.scale);
         // Gentle per-instance tint keeps the forest from looking cloned.

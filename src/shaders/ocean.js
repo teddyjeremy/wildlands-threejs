@@ -59,6 +59,8 @@ uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
 uniform float uLight;
+uniform vec3 uPlayer;
+uniform float uRipple;
 varying vec3 vWorld;
 varying vec3 vNormalW;
 
@@ -83,6 +85,14 @@ void main() {
   float band = smoothstep(0.86, 0.97, shore + 0.04 * sin(uTime * 1.3 + vWorld.x * 0.4 + vWorld.z * 0.3));
   float streak = 0.5 + 0.5 * sin(vWorld.x * 2.1 + uTime * 0.8) * sin(vWorld.z * 1.7 - uTime * 0.6);
   col = mix(col, vec3(0.95, 0.97, 0.95) * max(uLight, 0.25), band * (0.55 + 0.45 * streak));
+
+  // Ripples spreading from the player's legs while wading.
+  float pd = distance(vWorld.xz, uPlayer.xz);
+  float ripple = sin(pd * 5.5 - uTime * 5.0) * exp(-pd * 0.5) * uRipple;
+  col += vec3(0.9, 0.95, 1.0) * max(ripple, 0.0) * 0.22 * max(uLight, 0.3);
+  // Depth: a hint of caustic shimmer in the shallows.
+  float caustic = pow(abs(sin(vWorld.x * 1.3 + uTime) * sin(vWorld.z * 1.1 - uTime * 0.8)), 6.0);
+  col += vec3(0.5, 0.7, 0.6) * caustic * smoothstep(0.55, 0.9, shore) * 0.12 * uLight;
 
   float alpha = mix(0.96, 0.62, smoothstep(0.75, 1.0, shore));
   alpha = max(alpha, band * 0.9);

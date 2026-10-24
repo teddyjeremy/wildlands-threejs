@@ -69,7 +69,33 @@ export function buildExplorer() {
   root.traverse((o) => {
     if (o.isMesh) o.castShadow = true;
   });
-  return { root, body, neck, armL, armR, legL, legR, mat };
+
+  // Lantern, hung from the right hand on its own pivot so it can swing.
+  const lantern = new THREE.Group();
+  lantern.position.set(0, -0.6, 0.06);
+  armR.add(lantern);
+  const lanternSwing = new THREE.Group();
+  lantern.add(lanternSwing);
+  const frame = new THREE.Mesh(merge([
+    cyl(0.012, 0.012, 0.14, 4, '#3a3026', { y: -0.07 }), // handle wire
+    cyl(0.1, 0.12, 0.04, 6, '#4a3a2a', { y: -0.16 }), // cap
+    cyl(0.03, 0.06, 0.05, 6, '#6b5536', { y: -0.13 }),
+    cyl(0.11, 0.1, 0.04, 6, '#4a3a2a', { y: -0.4 }), // base
+    ...[0, 1, 2, 3, 4, 5].map((i) => box(0.016, 0.22, 0.016, '#3a3026', { x: Math.cos((i / 6) * Math.PI * 2) * 0.095, z: Math.sin((i / 6) * Math.PI * 2) * 0.095, y: -0.28 })),
+  ]), mat);
+  lanternSwing.add(frame);
+  const glassMat = new THREE.MeshBasicMaterial({ color: '#ffe7a8', transparent: true, opacity: 0.85 });
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.22, 6), glassMat);
+  glass.position.y = -0.28;
+  lanternSwing.add(glass);
+  const flame = new THREE.Mesh(new THREE.OctahedronGeometry(0.045, 0), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+  flame.position.y = -0.29;
+  lanternSwing.add(flame);
+  const light = new THREE.PointLight('#ffcf80', 0, 11, 1.6);
+  light.position.y = -0.28;
+  lanternSwing.add(light);
+  lantern.visible = false;
+  return { root, body, neck, armL, armR, legL, legR, mat, lantern, lanternSwing, glassMat, flame, light, swingV: 0, swingA: 0 };
 }
 
 /** Pose the rig for the current movement state. `phase` advances with distance walked. */
@@ -94,9 +120,23 @@ export function animateExplorer(rig, state, phase, dt, reduced = false) {
   lerp(rig.legL.rotation, 'x', state === 'jump' || state === 'fall' ? -0.5 : swing);
   lerp(rig.legR.rotation, 'x', state === 'jump' || state === 'fall' ? 0.25 : -swing);
   lerp(rig.armL.rotation, 'x', armUp ? armUp : -swing * 0.9);
-  lerp(rig.armR.rotation, 'x', state === 'interact' ? 0 : armUp ? armUp : swing * 0.9);
+  const holding = rig.lantern.visible;
+  const armRTarget = state === 'interact' ? -0.6 : holding ? -0.45 + swing * 0.25 : armUp ? armUp : swing * 0.9;
+  lerp(rig.armR.rotation, 'x', armRTarget);
   lerp(rig.body.rotation, 'x', lean);
+  // Counter-twist of the torso against the stride.
+  lerp(rig.body.rotation, 'y', reduced ? 0 : swing * 0.1);
+  lerp(rig.neck.rotation, 'y', reduced ? 0 : -swing * 0.08);
   rig.body.position.y = 0.95 + bob;
+  if (holding) {
+    // Damped pendulum: the lantern lags behind the arm and settles.
+    const want = -rig.armR.rotation.x - rig.body.rotation.x;
+    const dtc = Math.min(dt, 0.05);
+    rig.swingV += ((want - rig.swingA) * 40 - rig.swingV * 4.5) * dtc;
+    rig.swingA += rig.swingV * dtc;
+    rig.lanternSwing.rotation.x = reduced ? want : rig.swingA;
+    rig.lanternSwing.rotation.z = reduced ? 0 : Math.sin(phase * 0.5) * 0.08;
+  }
   // Idle breathing.
   if (state === 'idle' && !reduced) rig.body.scale.y = 1 + Math.sin(performance.now() * 0.002) * 0.008;
   else rig.body.scale.y = 1;

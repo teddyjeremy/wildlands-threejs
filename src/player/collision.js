@@ -58,6 +58,7 @@ export class CollisionWorld {
   deckHeightAt(x, z, y = Infinity) {
     let best = -Infinity;
     for (const d of this.decks) {
+      if (d.enabled === false) continue;
       const dx = x - d.x;
       const dz = z - d.z;
       const lx = dx * d.cos - dz * d.sin;
@@ -83,7 +84,7 @@ export class CollisionWorld {
         const list = this.cells.get(this._key(i + di, j + dj));
         if (!list) continue;
         for (const s of list) {
-          if (y > s.top || y + 1.6 < s.bottom) continue;
+          if (s.enabled === false || y > s.top || y + 1.6 < s.bottom) continue;
           if (s.type === 'circle') {
             const dx = pos.x - s.x;
             const dz = pos.z - s.z;

@@ -37,6 +37,8 @@ export function createOcean(terrain, segments = 128) {
     uFogNear: { value: 60 },
     uFogFar: { value: 260 },
     uLight: { value: 1 },
+    uPlayer: { value: new THREE.Vector3(0, -50, 0) },
+    uRipple: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,

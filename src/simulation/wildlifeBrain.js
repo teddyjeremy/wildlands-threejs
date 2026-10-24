@@ -83,6 +83,20 @@ export class WildlifeBrain {
     if (dist > t.calmRange || !heard) this.quiet += dt;
     else this.quiet = 0;
 
+    // Spring blooms around the lantern: a calm player is interesting, not
+    // scary. The animal drifts over and grazes a couple of metres away.
+    this.lured = false;
+    if (player.lure && !player.running && dist < 16 && this.state !== 'flee') {
+      this.lured = true;
+      if (this.state !== 'forage') this._set('forage');
+      const d = dist || 1;
+      this.target.x = player.x + ((self.x - player.x) / d) * 2.2;
+      this.target.z = player.z + ((self.z - player.z) / d) * 2.2;
+      this.clampToHabitat(this.target);
+      this.forageWait = 2;
+      return this.state;
+    }
+
     switch (this.state) {
       case 'forage': {
         if (close) this._set('flee');

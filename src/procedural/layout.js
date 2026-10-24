@@ -71,6 +71,7 @@ export function createLayout(config) {
     };
   });
 
+  layout.keepOut = config.keepOut || [];
   layout.start = { x: c.x, z: c.z, heading: Math.PI };
   return layout;
 }

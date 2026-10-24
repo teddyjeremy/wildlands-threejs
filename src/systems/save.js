@@ -3,7 +3,7 @@
 // validated; anything malformed is dropped rather than crashing startup.
 
 export const SAVE_KEY = 'wildlands.save';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export const DEFAULT_SETTINGS = Object.freeze({
   quality: 'medium',
@@ -36,12 +36,26 @@ export function sanitizeSettings(s) {
 
 const idList = (v) => (Array.isArray(v) ? [...new Set(v.filter((x) => typeof x === 'string' && x.length < 64))] : []);
 
-/** Upgrade older shapes. v1 stored `found` instead of `discovered`. */
+/**
+ * Upgrade older shapes. v1 stored `found` instead of `discovered`; v2 was a
+ * single island, which became the first island of the archipelago in v3.
+ */
 function migrate(raw) {
-  if (raw.version === 1) {
-    return { ...raw, version: 2, discovered: raw.found || [], collected: raw.collected || [] };
+  let d = raw;
+  if (d.version === 1) d = { ...d, version: 2, discovered: d.found || [], collected: d.collected || [] };
+  if (d.version === 2) d = { ...d, version: 3, level: 0, progression: null, levels: {} };
+  return d;
+}
+
+function sanitizeLevels(v) {
+  const out = {};
+  if (!v || typeof v !== 'object') return out;
+  for (const [k, e] of Object.entries(v)) {
+    const i = Number(k);
+    if (!Number.isInteger(i) || i < 0 || i > 16 || !e || typeof e !== 'object') continue;
+    out[i] = { discovered: idList(e.discovered), collected: idList(e.collected) };
   }
-  return raw;
+  return out;
 }
 
 /**
@@ -68,6 +82,9 @@ export function validateSave(raw, worldKey) {
     timeOfDay: isNum(data.timeOfDay) ? ((data.timeOfDay % 1) + 1) % 1 : null,
     trail: null,
     savedAt: isNum(data.savedAt) ? data.savedAt : 0,
+    level: Number.isInteger(data.level) && data.level >= 0 && data.level < 16 ? data.level : 0,
+    progression: data.progression && typeof data.progression === 'object' && !Array.isArray(data.progression) ? data.progression : null,
+    levels: sanitizeLevels(data.levels),
   };
   const p = data.player;
   if (sameWorld && p && isNum(p.x) && isNum(p.y) && isNum(p.z) && Math.abs(p.x) < 500 && Math.abs(p.z) < 500) {

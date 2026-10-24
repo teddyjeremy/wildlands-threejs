@@ -46,6 +46,7 @@ function keepOutZones(L) {
     { x: L.peak.x, z: L.peak.z, r: 4 },
     { x: L.forest.x - 6, z: L.forest.z - 4, r: 6 }, // old tree clearing
     ...L.pools.map((p) => ({ x: p.x, z: p.z, r: p.r + 1.5 })),
+    ...(L.keepOut || []),
   ];
 }
 

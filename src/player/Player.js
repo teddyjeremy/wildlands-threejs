@@ -39,6 +39,8 @@ export class Player {
     this.onLand = null;
     this.onJump = null;
     this._normal = { x: 0, y: 1, z: 0 };
+    this.extraSurface = null; // optional (x,z) -> height, e.g. lagoon ice
+    this.onIce = false;
   }
 
   spawn(x, z, heading = 0, y = null) {
@@ -58,13 +60,15 @@ export class Player {
   groundHeight(x, z, y) {
     const t = this.terrain.heightAt(x, z);
     const d = this.collisions.deckHeightAt(x, z, y);
-    return Math.max(t, d);
+    const e = this.extraSurface ? this.extraSurface(x, z) : -Infinity;
+    return Math.max(t, d, e);
   }
 
   /** Is (x,z) somewhere the player may stand (not deep sea, not a cliff)? */
   _walkable(x, z, fromX, fromZ, y) {
     const deck = this.collisions.deckHeightAt(x, z, y);
     if (deck > -Infinity) return true;
+    if (this.extraSurface && this.extraSurface(x, z) > -Infinity && y > -0.4) return true;
     const h = this.terrain.heightAt(x, z);
     if (h < this.terrain.seaLevel - 0.7) return false; // waist-deep: turn back
     const h0 = this.terrain.heightAt(fromX, fromZ);
@@ -138,9 +142,10 @@ export class Player {
     this.collisions.resolve(this.pos, RADIUS, this.pos.y);
     // Island bounds as a last resort.
     const r = Math.hypot(this.pos.x, this.pos.z);
-    if (r > 108) {
-      this.pos.x *= 108 / r;
-      this.pos.z *= 108 / r;
+    const lim = (this.terrain.grid.size || 240) / 2 - 10;
+    if (r > lim) {
+      this.pos.x *= lim / r;
+      this.pos.z *= lim / r;
     }
 
     // Vertical.
@@ -156,7 +161,7 @@ export class Player {
         this.vel.y = 0;
         // Steep slopes push you back down.
         const n = this.terrain.normalAt(this.pos.x, this.pos.z, this._normal);
-        if (!this.onDeck && 1 - n.y > MAX_SLOPE + 0.12) {
+        if (!this.onDeck && !this.onIce && 1 - n.y > MAX_SLOPE + 0.12) {
           this.vel.x += n.x * 18 * dt;
           this.vel.z += n.z * 18 * dt;
         }
@@ -175,8 +180,10 @@ export class Player {
     }
 
     // Surface + footsteps.
-    this.surface = this.onDeck ? 'wood' : this.terrain.groundTypeAt(this.pos.x, this.pos.z);
-    if (this.pos.y < this.terrain.seaLevel + 0.05 && !this.onDeck) this.surface = 'water';
+    const ice = this.extraSurface ? this.extraSurface(this.pos.x, this.pos.z) : -Infinity;
+    this.onIce = ice > -Infinity && Math.abs(this.pos.y - ice) < 0.05 && this.terrain.heightAt(this.pos.x, this.pos.z) < ice;
+    this.surface = this.onDeck ? 'wood' : this.onIce ? 'rock' : this.terrain.groundTypeAt(this.pos.x, this.pos.z);
+    if (this.pos.y < this.terrain.seaLevel + 0.05 && !this.onDeck && !this.onIce) this.surface = 'water';
     const horiz = Math.hypot(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     this.phase += horiz * 2.1;
     if (this.grounded) {

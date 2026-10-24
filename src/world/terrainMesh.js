@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createRandom } from '../procedural/random.js';
+import { patchSeasonVertex, patchSeasonFragment, UP_FROM_DERIVATIVES, GREENISH } from '../shaders/season.js';
 
 // Builds the faceted island mesh from the shared height grid and patches
 // the standard Lambert material with three extras:
@@ -161,6 +162,8 @@ if (uDebugMode > 0) {
   diffuseColor.rgb = mix(dbg, vec3(0.05), line * 0.35);
 }`,
       );
+    patchSeasonVertex(shader);
+    patchSeasonFragment(shader, { foliage: GREENISH, up: UP_FROM_DERIVATIVES });
   };
   material.customProgramCacheKey = () => 'wildlands-terrain';
 

@@ -19,7 +19,8 @@ export class TrailGrid {
   /**
    * @param {object} o size (world units), cellSize, surfaceAt(x,z) -> type
    */
-  constructor({ size = 240, cellSize = 0.75, surfaceAt = () => 'grass', budget = 4000 } = {}) {
+  constructor({ size = 240, cellSize = 0.75, surfaceAt = () => 'grass', budget = 4000, response = SURFACE_RESPONSE } = {}) {
+    this.response = response;
     this.size = size;
     this.cellSize = cellSize;
     this.res = Math.ceil(size / cellSize);
@@ -102,7 +103,7 @@ export class TrailGrid {
         const d = Math.hypot(di, dj) * this.cellSize;
         if (d > radius + this.cellSize * 0.5) continue;
         const idx = j * this.res + i;
-        const resp = SURFACE_RESPONSE[this.surfaceOf(idx)];
+        const resp = this.response[this.surfaceOf(idx)];
         if (!resp.gain) continue;
         const falloff = 1 - Math.min(1, d / (radius + this.cellSize));
         const v = this.values[idx] + amount * resp.gain * (0.4 + 0.6 * falloff);
@@ -132,7 +133,7 @@ export class TrailGrid {
     for (let k = 0; k < n && this.activeCount; k++) {
       if (this.sweep >= this.activeCount) this.sweep = 0;
       const idx = this.active[this.sweep];
-      const resp = SURFACE_RESPONSE[this.surfaceOf(idx)];
+      const resp = this.response[this.surfaceOf(idx)];
       const v = this.values[idx] - resp.regrow * step;
       if (v <= 0.002) {
         this.values[idx] = 0;
@@ -147,6 +148,33 @@ export class TrailGrid {
     }
     this.dirty = true;
     return processed;
+  }
+
+  /**
+   * Add `amount` to every cell within `radius` of (x,z), regardless of
+   * movement. Used by the frost grid, which forms while the lantern is held still.
+   */
+  stampAt(x, z, radius, amount) {
+    const r = Math.ceil(radius / this.cellSize);
+    const ci = Math.floor((x + this.half) / this.cellSize);
+    const cj = Math.floor((z + this.half) / this.cellSize);
+    let touched = 0;
+    for (let dj = -r; dj <= r; dj++) {
+      for (let di = -r; di <= r; di++) {
+        const i = ci + di;
+        const j = cj + dj;
+        if (i < 0 || j < 0 || i >= this.res || j >= this.res) continue;
+        if (Math.hypot(di, dj) * this.cellSize > radius) continue;
+        const idx = j * this.res + i;
+        const resp = this.response[this.surfaceOf(idx)];
+        if (!resp.gain) continue;
+        this.values[idx] = Math.min(1, this.values[idx] + amount * resp.gain);
+        this._activate(idx);
+        touched++;
+      }
+    }
+    if (touched) this.dirty = true;
+    return touched;
   }
 
   /** Compact RLE of quantised values for the save file. */

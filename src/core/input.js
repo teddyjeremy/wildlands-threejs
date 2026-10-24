@@ -15,6 +15,13 @@ const PRESS = {
   Tab: 'notebook',
   Escape: 'pause',
   KeyP: 'pause',
+  KeyQ: 'season-next',
+  Digit1: 'season-1',
+  Digit2: 'season-2',
+  Digit3: 'season-3',
+  Digit4: 'season-4',
+  KeyF: 'lantern',
+  KeyM: 'map',
   Backquote: 'debug',
   F3: 'debug',
 };
